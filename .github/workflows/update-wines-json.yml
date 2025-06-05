@@ -1,0 +1,46 @@
+# .github/workflows/update-wines-json.yml
+
+name: "Build & Publish wines.json to GitHub Pages"
+
+on:
+  # Run every day at 02:00 UTC; adjust cron if you like
+  schedule:
+    - cron: '0 2 * * *'
+  # Also allow manual runs from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Check out the main branch
+      - uses: actions/checkout@v3
+
+      # 2) Install Node.js (v18)
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # 3) Install npm dependencies (mysql2)
+      - name: npm install
+        run: npm install
+
+      # 4) Run our generator script to produce wines.json
+      - name: Generate wines.json
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: npm run generate
+
+      # 5) Publish the updated wines.json to the gh-pages branch
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./        # publish everything in repo root
+          publish_branch: gh-pages
+          force_orphan: true     # create branch if it doesn’t exist
