@@ -1,0 +1,46 @@
+# .github/workflows/publish-wines.yml
+
+name: "Fetch wines.json from InfinityFree and publish to gh-pages"
+
+on:
+  schedule:
+    # Runs every day at 02:00 UTC (you can change the cron if you want)
+    - cron: '0 2 * * *'
+  # Also allow manual triggers
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Check out the default branch (main) so we have a “wines.json” to push.
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2) Grab the PHP‐generated JSON
+      - name: Download wines.php JSON
+        run: |
+          curl -fSsL "https://dqwines.infinityfreeapp.com/wines.php" -o wines.json
+        # If curl fails (non-200), this step will fail and the job stops.
+
+      # 3) Check that wines.json is valid JSON and non-empty (optional sanity check)
+      - name: Validate wines.json
+        run: |
+          if ! jq -e . wines.json >/dev/null 2>&1; then
+            echo "ERROR: wines.json is not valid JSON"
+            exit 1
+          fi
+          if [ "$(jq length wines.json)" -eq "0" ]; then
+            echo "WARNING: wines.json is empty; but continuing."
+          fi
+
+      # 4) Push the new wines.json to gh-pages
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./       # the current directory contains wines.json
+          publish_branch: gh-pages
+          force_orphan: true     # create gh-pages if it doesn’t exist
